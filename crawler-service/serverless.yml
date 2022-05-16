@@ -1,0 +1,49 @@
+service: crawler-service
+frameworkVersion: '>=1.30.0'
+custom:
+  bucket: ${env:IMG_RECOG_SYS_BUCKET}
+  crawlerqueue: CrawlerQueue
+  analysisqueue: AnalysisQueue
+  region: ${env:AWS_DEFAULT_REGION, 'us-east-1'}
+  accountid: ${env:AWS_ACCOUNT_ID}
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: ${env:AWS_DEFAULT_REGION, 'us-east-1'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Resource: 'arn:aws:s3:::${self:custom.bucket}/*'
+          Action:
+            - 's3:PutObject'
+        - Effect: Allow
+          Resource: 'arn:aws:sqs:${self:provider.region}:*:*'
+          Action:
+            - 'sqs:ListQueues'
+        - Effect: Allow
+          Resource: 'arn:aws:sqs:*:*:${self:custom.crawlerqueue}'
+          Action:
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueUrl
+        - Effect: Allow
+          Resource: 'arn:aws:sqs:*:*:${self:custom.analysisqueue}'
+          Action:
+            - sqs:SendMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueUrl
+
+functions:
+  crawlImages:
+    handler: handler.crawlImages
+    environment:
+      BUCKET: ${self:custom.bucket}
+      ANALYSIS_QUEUE: ${self:custom.analysisqueue}
+      REGION: ${self:custom.region}
+      ACCOUNTID: ${self:custom.accountid}
+    events:
+      - sqs:
+          arn: 'arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:${self:custom.crawlerqueue}'

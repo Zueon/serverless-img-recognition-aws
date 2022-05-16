@@ -1,0 +1,72 @@
+service: ui-service
+frameworkVersion: '>=1.30.0'
+plugins:
+  - serverless-domain-manager
+custom:
+  bucket: ${env:IMG_RECOG_SYS_BUCKET}
+  crawlerqueue: CrawlerQueue
+  region: ${env:AWS_DEFAULT_REGION, 'us-east-1'}
+  domain: ${env:DOMAIN}
+  accountid: ${env:AWS_ACCOUNT_ID}
+  customDomain:
+    domainName: 'api.${self:custom.domain}'
+    stage: dev
+    basePath: api
+    certificateName: '*.${self:custom.domain}'
+    createRoute53Record: true
+    endpointType: regional
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: ${env:AWS_DEFAULT_REGION, 'us-east-1'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: 'arn:aws:s3:::${self:custom.bucket}/*'
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueUrl
+          Resource: 'arn:aws:sqs:*:*:${self:custom.crawlerqueue}'
+        - Effect: Allow
+          Action:
+            - sqs:ListQueues
+          Resource: 'arn:aws:sqs:::*'
+
+functions:
+  analyzeUrl:
+    handler: handler.analyzeUrl
+    environment:
+      BUCKET: ${self:custom.bucket}
+      QUEUE: ${self:custom.crawlerqueue}
+      REGION: ${self:custom.region}
+      ACCOUNTID: ${self:custom.accountid}
+    events:
+      - http:
+          path: url/analyze
+          method: post
+          cors: true
+  listUrls:
+    handler: handler.listUrls
+    environment:
+      BUCKET: ${self:custom.bucket}
+    events:
+      - http:
+          path: url/list
+          method: get
+          cors: true
+  listImages:
+    handler: handler.listImages
+    environment:
+      BUCKET: ${self:custom.bucket}
+    events:
+      - http:
+          path: image/list
+          method: get
+          cors: true

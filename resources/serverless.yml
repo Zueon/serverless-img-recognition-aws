@@ -1,0 +1,46 @@
+service: resources
+frameworkVersion: '>=1.30.0'
+custom:
+  bucket: ${env:IMG_RECOG_SYS_BUCKET}
+  crawlerqueue: CrawlerQueue
+  analysisqueue: AnalysisQueue
+  region: ${env:AWS_DEFAULT_REGION, 'us-east-1'}
+  accountid: ${env:AWS_ACCOUNT_ID}
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: ${env:AWS_DEFAULT_REGION, 'us-east-1'}
+
+resources:
+  Resources:
+    WebAppS3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.bucket}
+        AccessControl: PublicRead
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: index.html
+    WebAppS3BucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: WebAppS3Bucket
+        PolicyDocument:
+          Statement:
+            - Sid: PublicReadGetObject
+              Effect: Allow
+              Principal: '*'
+              Action:
+                - s3:GetObject
+              Resource: arn:aws:s3:::${self:custom.bucket}/*
+    CrawlerQueue:
+      Type: 'AWS::SQS::Queue'
+      Properties:
+        QueueName: '${self:custom.crawlerqueue}'
+    AnalysisQueue:
+      Type: 'AWS::SQS::Queue'
+      Properties:
+        QueueName: '${self:custom.analysisqueue}'

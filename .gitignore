@@ -1,0 +1,8 @@
+checkenv.sh
+deploy.sh
+remove.sh
+
+fuge
+
+**/node_modules
+**/.serverless
